@@ -111,12 +111,6 @@ EventTimeline.Instance.SetPaused(true);
 EventTimeline.Instance.SetTimeScale(0.5f);
 ```
 
-## Documentation
-
-For complete documentation, see:
-
-- [API Reference](https://github.com/ahmedkamalio/UnityEventTimeline/blob/main/Assets/UnityEventTimeline/Documentation~/UnityEventTimeline.md)
-
 ## Performance
 
 - Efficient binary min-heap implementation
@@ -129,6 +123,18 @@ For complete documentation, see:
 
 - Unity 2021.3 or higher
 - .NET Standard 2.1
+
+## Documentation
+
+For complete documentation, see:
+
+- [API Reference](https://github.com/ahmedkamalio/UnityEventTimeline/blob/main/Assets/UnityEventTimeline/Documentation~/UnityEventTimeline.md)
+
+## Contributing
+
+Contributions are welcome! Please read
+our [Contributing Guidelines](https://github.com/ahmedkamalio/UnityEventTimeline/blob/main/CONTRIBUTING.md)
+before submitting PRs.
 
 ## License
 
