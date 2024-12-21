@@ -22,6 +22,5 @@
     "url": "https://ahmedkamal.io"
   },
   "dependencies": {
-    "io.ahmedkamal.unity.resultobject": "https://github.com/ahmedkamalio/ResultObjectForUnity.git?path=/Assets/ResultObject"
   }
 }
