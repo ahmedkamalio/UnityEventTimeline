@@ -1,0 +1,10 @@
+{
+  "name": "UnityEventTimeline.Tests",
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "references": [
+    "UnityEventTimeline",
+    "ResultObject"
+  ]
+}
