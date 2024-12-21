@@ -134,5 +134,5 @@ For complete documentation, see:
 
 This package is licensed under
 the MIT License. See
-the [LICENSE]([MIT License](https://github.com/ahmedkamalio/UnityEventTimeline/blob/main/Assets/UnityEventTimeline/LICENSE))
+the [LICENSE](https://github.com/ahmedkamalio/UnityEventTimeline/blob/main/LICENSE)
 file for details.
