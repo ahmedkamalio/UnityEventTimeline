@@ -126,16 +126,12 @@ namespace UnityEventTimeline
         /// </summary>
         /// <returns>
         /// true if the event can be executed; false if it should be skipped.
-        /// By default, returns true only if the event is not cancelled.
         /// </returns>
         /// <remarks>
         /// This virtual method can be overridden by derived classes to add
         /// additional execution conditions beyond the basic cancellation check.
         /// </remarks>
-        protected virtual bool CanExecute()
-        {
-            return !IsCancelled;
-        }
+        protected virtual bool CanExecute() => true;
 
         /// <summary>
         /// Internal method that handles the event execution process.
@@ -147,7 +143,7 @@ namespace UnityEventTimeline
         /// </remarks>
         internal virtual void ExecuteInternal()
         {
-            if (CanExecute())
+            if (IsCancelled || CanExecute())
             {
                 Execute();
             }
@@ -354,7 +350,7 @@ namespace UnityEventTimeline
         /// </remarks>
         internal override void ExecuteInternal()
         {
-            if (!CanExecute())
+            if (IsCancelled || !CanExecute())
             {
                 return;
             }
