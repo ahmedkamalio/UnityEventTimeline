@@ -1,4 +1,4 @@
-name: Auto Tag
+name: Auto Tag and Release
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  create-tag:
+  create-tag-and-release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -16,21 +16,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get version from package.json
-        id: package-version
+      - name: Get version and info from package.json
+        id: package-info
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const packageJson = JSON.parse(fs.readFileSync('Assets/UnityEventTimeline/package.json', 'utf8'));
-            return packageJson.version;
-          result-encoding: string
+            return {
+              version: packageJson.version,
+              description: packageJson.description || '',
+              name: packageJson.name || ''
+            };
+          result-encoding: json
 
       - name: Check if tag exists
         id: check-tag
         run: |
-          if [ $(git tag -l "v${{ steps.package-version.outputs.result }}") ]; then
-            echo "Tag v${{ steps.package-version.outputs.result }} already exists"
+          if [ $(git tag -l "v${{ fromJSON(steps.package-info.outputs.result).version }}") ]; then
+            echo "Tag v${{ fromJSON(steps.package-info.outputs.result).version }} already exists"
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -41,5 +45,42 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a "v${{ steps.package-version.outputs.result }}" -m "Release v${{ steps.package-version.outputs.result }}"
-          git push origin "v${{ steps.package-version.outputs.result }}"
+          git tag -a "v${{ fromJSON(steps.package-info.outputs.result).version }}" -m "Release v${{ fromJSON(steps.package-info.outputs.result).version }}"
+          git push origin "v${{ fromJSON(steps.package-info.outputs.result).version }}"
+
+      - name: Generate changelog
+        if: steps.check-tag.outputs.exists == 'false'
+        id: changelog
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const execSync = require('child_process').execSync;
+            // Get the previous tag
+            let previousTag;
+            try {
+              previousTag = execSync('git describe --tags --abbrev=0 HEAD^', { encoding: 'utf8' }).trim();
+            } catch (error) {
+              // If no previous tag exists, get the first commit
+              previousTag = execSync('git rev-list --max-parents=0 HEAD', { encoding: 'utf8' }).trim();
+            }
+
+            // Get commits since last tag
+            const changelog = execSync(`git log ${previousTag}..HEAD --pretty=format:"* %s (%h)"`, { encoding: 'utf8' });
+            return changelog;
+          result-encoding: string
+
+      - name: Create Release
+        if: steps.check-tag.outputs.exists == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ fromJSON(steps.package-info.outputs.result).version }}
+          release_name: v${{ fromJSON(steps.package-info.outputs.result).version }} - ${{ fromJSON(steps.package-info.outputs.result).name }}
+          body: |
+            ${{ fromJSON(steps.package-info.outputs.result).description }}
+            
+            ## Changes
+            ${{ steps.changelog.outputs.result }}
+          draft: false
+          prerelease: false
