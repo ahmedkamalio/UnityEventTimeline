@@ -1,5 +1,13 @@
 #nullable enable
 
+#if (DEVELOPMENT_BUILD || UNITY_EDITOR) && EVENTTIMELINE_DEBUG
+#define __EVENTTIMELINE_DEBUG
+#endif
+
+#if __EVENTTIMELINE_DEBUG && EVENTTIMELINE_DEBUG_VERBOSE
+#define __EVENTTIMELINE_DEBUG_VERBOSE
+#endif
+
 using System;
 using System.Threading;
 using UnityEngine;
@@ -61,6 +69,10 @@ namespace UnityEventTimeline.Internal
         /// </param>
         public void SetTimeScale(float scale)
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventTimelineBase] Setting time scale to {scale}");
+#endif
+
             timeScale = scale;
         }
 
@@ -70,6 +82,10 @@ namespace UnityEventTimeline.Internal
         /// <param name="paused">True to pause event processing, false to resume.</param>
         public void SetPaused(bool paused)
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventTimelineBase] Setting paused to {paused}");
+#endif
+
             isPaused = paused;
         }
 
@@ -86,10 +102,18 @@ namespace UnityEventTimeline.Internal
         {
             if (IsMainThread)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log("[EventTimelineBase] Already on main thread, executing action immediately.");
+#endif
+
                 action();
             }
             else
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log("[EventTimelineBase] Posting action to main thread.");
+#endif
+
                 _mainThreadContext?.Post(_ => action(), null);
             }
         }

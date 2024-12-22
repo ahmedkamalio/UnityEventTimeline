@@ -4,11 +4,16 @@
 #define __EVENTTIMELINE_DEBUG
 #endif
 
+#if __EVENTTIMELINE_DEBUG && EVENTTIMELINE_DEBUG_VERBOSE
+#define __EVENTTIMELINE_DEBUG_VERBOSE
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-#if __EVENTTIMELINE_DEBUG
+
+#if __EVENTTIMELINE_DEBUG || __EVENTTIMELINE_DEBUG_VERBOSE
 using UnityEngine;
 #endif
 
@@ -174,8 +179,8 @@ namespace UnityEventTimeline.Internal.EventQueue
         {
             _heap = new List<T>(capacity > 0 ? capacity : DefaultCapacity);
 
-#if __EVENTTIMELINE_DEBUG
-            Debug.Log($"Initializing event priority queue with capacity: {capacity}");
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+        Debug.Log($"[EventPriorityQueue] Initialized with capacity: {capacity}, DefaultCapacity: {DefaultCapacity}");
 #endif
         }
 
@@ -194,9 +199,15 @@ namespace UnityEventTimeline.Internal.EventQueue
                 if (_heap.Count > 0)
                 {
                     item = _heap[0];
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log($"[EventPriorityQueue] Peeked item of type {item.GetType().Name}");
+#endif
                     return true;
                 }
 
+#if __EVENTTIMELINE_DEBUG
+            Debug.LogWarning("[EventPriorityQueue] TryPeek failed - queue is empty");
+#endif
                 item = null;
                 return false;
             }
@@ -214,8 +225,16 @@ namespace UnityEventTimeline.Internal.EventQueue
         {
             lock (_heapLock)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            var initialCount = _heap.Count;
+            Debug.Log($"[EventPriorityQueue] Enqueuing item of type {item.GetType().Name}. Current queue size: {initialCount}");
+#endif
                 _heap.Add(item);
                 HeapifyUp(_heap.Count - 1);
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventPriorityQueue] Item enqueued successfully. New queue size: {_heap.Count}");
+#endif
             }
         }
 
@@ -231,6 +250,10 @@ namespace UnityEventTimeline.Internal.EventQueue
         {
             lock (_heapLock)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            var initialCount = _heap.Count;
+            Debug.Log($"[EventPriorityQueue] Beginning bulk enqueue operation. Current queue size: {initialCount}");
+#endif
                 _heap.AddRange(items);
 
                 // Heapify from the last parent node
@@ -238,6 +261,11 @@ namespace UnityEventTimeline.Internal.EventQueue
                 {
                     HeapifyDown(i);
                 }
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            var itemsAdded = _heap.Count - initialCount;
+            Debug.Log($"[EventPriorityQueue] Bulk enqueue completed. Added {itemsAdded} items. New queue size: {_heap.Count}");
+#endif
             }
         }
 
@@ -255,18 +283,29 @@ namespace UnityEventTimeline.Internal.EventQueue
         {
             if (count <= 0)
             {
+#if __EVENTTIMELINE_DEBUG
+            Debug.LogWarning("[EventPriorityQueue] DequeueRange called with count <= 0, returning empty array");
+#endif
                 return Array.Empty<T>();
             }
 
             List<T> result;
             lock (_heapLock)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            var initialCount = _heap.Count;
+            Debug.Log($"[EventPriorityQueue] Beginning DequeueRange operation. Requested: {count}, Available: {initialCount}");
+#endif
+
                 var resultSize = Math.Min(count, _heap.Count);
                 result = new List<T>(resultSize);
 
                 // For large ranges, rebuild heap once instead of multiple times
                 if (resultSize > _heap.Count / 2)
                 {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log($"[EventPriorityQueue] Using bulk dequeue optimization for {resultSize} items");
+#endif
                     result.AddRange(_heap.OrderBy(x => x));
                     _heap.Clear();
                     return result.Take(count);
@@ -277,6 +316,10 @@ namespace UnityEventTimeline.Internal.EventQueue
                 {
                     result.Add(DequeueInternal());
                 }
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventPriorityQueue] DequeueRange completed. Dequeued: {result.Count}, Remaining: {_heap.Count}");
+#endif
             }
 
             return result;
@@ -293,7 +336,16 @@ namespace UnityEventTimeline.Internal.EventQueue
         {
             lock (_heapLock)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            var clearedCount = _heap.Count;
+            Debug.Log($"[EventPriorityQueue] Clearing queue. Items to be cleared: {clearedCount}");
+#endif
+
                 _heap.Clear();
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log("[EventPriorityQueue] Queue cleared successfully");
+#endif
             }
         }
 
@@ -308,7 +360,16 @@ namespace UnityEventTimeline.Internal.EventQueue
         {
             lock (_heapLock)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            var initialCapacity = _heap.Capacity;
+            Debug.Log($"[EventPriorityQueue] Beginning TrimExcess. Current capacity: {initialCapacity}, Count: {_heap.Count}");
+#endif
+
                 _heap.TrimExcess();
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventPriorityQueue] TrimExcess completed. New capacity: {_heap.Capacity}");
+#endif
             }
         }
 
@@ -325,7 +386,11 @@ namespace UnityEventTimeline.Internal.EventQueue
         {
             lock (_heapLock)
             {
-                return _heap.Contains(item);
+                var contains = _heap.Contains(item);
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventPriorityQueue] Contains check for item of type {item.GetType().Name}: {contains}");
+#endif
+                return contains;
             }
         }
 
@@ -343,9 +408,16 @@ namespace UnityEventTimeline.Internal.EventQueue
         {
             lock (_heapLock)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventPriorityQueue] Attempting to remove item of type {item.GetType().Name}");
+#endif
+
                 var index = _heap.IndexOf(item);
                 if (index == -1)
                 {
+#if __EVENTTIMELINE_DEBUG
+                Debug.LogWarning("[EventPriorityQueue] Item not found in queue");
+#endif
                     return false;
                 }
 
@@ -353,6 +425,9 @@ namespace UnityEventTimeline.Internal.EventQueue
                 if (index == _heap.Count - 1)
                 {
                     _heap.RemoveAt(index);
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log("[EventPriorityQueue] Removed last item in queue");
+#endif
                     return true;
                 }
 
@@ -366,6 +441,10 @@ namespace UnityEventTimeline.Internal.EventQueue
                 // could be either smaller or larger than its parent
                 HeapifyUp(index);
                 HeapifyDown(index);
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventPriorityQueue] Item removed successfully. New queue size: {_heap.Count}");
+#endif
 
                 return true;
             }
@@ -383,6 +462,10 @@ namespace UnityEventTimeline.Internal.EventQueue
         /// </remarks>
         private T DequeueInternal()
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+        Debug.Log("[EventPriorityQueue] Beginning internal dequeue operation");
+#endif
+
             var result = _heap[0];
             var lastIndex = _heap.Count - 1;
             _heap[0] = _heap[lastIndex];
@@ -392,6 +475,10 @@ namespace UnityEventTimeline.Internal.EventQueue
             {
                 HeapifyDown(0);
             }
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+        Debug.Log($"[EventPriorityQueue] Internal dequeue completed. Dequeued item of type {result.GetType().Name}");
+#endif
 
             return result;
         }
@@ -408,6 +495,11 @@ namespace UnityEventTimeline.Internal.EventQueue
         /// </remarks>
         private void HeapifyUp(int index)
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+        Debug.Log($"[EventPriorityQueue] Beginning HeapifyUp from index {index}");
+        var initialIndex = index;
+#endif
+
             var item = _heap[index];
 
             while (index > 0)
@@ -425,6 +517,13 @@ namespace UnityEventTimeline.Internal.EventQueue
             }
 
             _heap[index] = item;
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+        if (index != initialIndex)
+        {
+            Debug.Log($"[EventPriorityQueue] HeapifyUp moved item from index {initialIndex} to {index}");
+        }
+#endif
         }
 
         /// <summary>
@@ -440,6 +539,12 @@ namespace UnityEventTimeline.Internal.EventQueue
         /// </remarks>
         private void HeapifyDown(int index)
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+        Debug.Log($"[EventPriorityQueue] Beginning HeapifyDown from index {index}");
+        var initialIndex = index;
+        var swaps = 0;
+#endif
+
             var item = _heap[index];
             var lastIndex = _heap.Count - 1;
 
@@ -467,9 +572,20 @@ namespace UnityEventTimeline.Internal.EventQueue
 
                 _heap[index] = _heap[smallestChild];
                 index = smallestChild;
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                swaps++;
+#endif
             }
 
             _heap[index] = item;
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+        if (swaps > 0)
+        {
+            Debug.Log($"[EventPriorityQueue] HeapifyDown moved item from index {initialIndex} to {index} with {swaps} swaps");
+        }
+#endif
         }
     }
 }

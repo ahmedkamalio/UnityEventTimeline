@@ -203,13 +203,76 @@ EventTimeline.Instance.SetMaxProcessingTime(8.0f); // milliseconds
 
 ## Debug Support
 
-Enable debug logging by defining the EVENTTIMELINE_DEBUG symbol in your development builds:
+The event timeline system provides two levels of debug logging that can be enabled via compiler symbols:
+
+### Basic Debug Logging
+
+Basic debug logging includes warnings and errors, enabled by defining the `EVENTTIMELINE_DEBUG` symbol. The logging will
+be active in the Unity Editor or development builds when this symbol is defined:
 
 ```csharp
 #if (DEVELOPMENT_BUILD || UNITY_EDITOR) && EVENTTIMELINE_DEBUG
-    // Debug logging will be active
+    // Basic debug logging is enabled in this condition.
 #endif
 ```
+
+### Verbose Debug Logging
+
+Verbose logging includes detailed operational information and requires both `EVENTTIMELINE_DEBUG` and
+`EVENTTIMELINE_DEBUG_VERBOSE` symbols to be defined:
+
+```csharp
+#if EVENTTIMELINE_DEBUG && EVENTTIMELINE_DEBUG_VERBOSE
+    // Verbose debug logging is enabled in this condition.
+#endif
+```
+
+### Configuring Debug Symbols
+
+There are two ways to define these debug symbols:
+
+1. Via Unity's Player Settings:
+    - Open Project Settings -> Player
+    - Under "Other Settings" -> "Script Compilation"
+    - Add to "Scripting Define Symbols":
+      ```
+      EVENTTIMELINE_DEBUG
+      EVENTTIMELINE_DEBUG_VERBOSE
+      ```
+
+2. Via compilation arguments in your build configuration:
+   ```
+   -define:EVENTTIMELINE_DEBUG
+   -define:EVENTTIMELINE_DEBUG_VERBOSE
+   ```
+
+### Debug Output Examples
+
+Basic debug logging (`EVENTTIMELINE_DEBUG`) includes:
+
+- Warnings about invalid operations
+- Error conditions
+- Important state changes
+
+Verbose logging (`EVENTTIMELINE_DEBUG_VERBOSE`) additionally includes:
+
+- Detailed execution timing
+- Event processing steps
+- Pool operations
+- Queue state changes
+- Memory optimization details
+
+For example, event execution with verbose logging enabled:
+
+```
+[TimelineEvent] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+[TimelineEvent] Beginning internal execution of event: CustomEvent
+[TimelineEvent] Successfully executed event: CustomEvent
+[TimelineEvent] Execution time: 1ms
+[TimelineEvent] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+```
+
+Note: Debug logging is automatically disabled in release builds unless explicitly enabled through compilation symbols.
 
 ## Example Scenarios
 

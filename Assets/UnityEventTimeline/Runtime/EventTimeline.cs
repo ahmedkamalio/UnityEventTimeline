@@ -4,6 +4,10 @@
 #define __EVENTTIMELINE_DEBUG
 #endif
 
+#if __EVENTTIMELINE_DEBUG && EVENTTIMELINE_DEBUG_VERBOSE
+#define __EVENTTIMELINE_DEBUG_VERBOSE
+#endif
+
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEventTimeline.Internal;
@@ -52,11 +56,17 @@ namespace UnityEventTimeline
             {
                 if (_instance is not null)
                 {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                    Debug.Log("[EventTimeline] Returning existing instance");
+#endif
                     return _instance;
                 }
 
                 lock (SingletonLock)
                 {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                    Debug.Log("[EventTimeline] Creating new instance");
+#endif
                     var go = new GameObject(nameof(EventTimeline));
                     _instance = go.AddComponent<EventTimeline>();
                     DontDestroyOnLoad(go);
@@ -95,13 +105,22 @@ namespace UnityEventTimeline
             {
                 if (_instance is not null && _instance != this)
                 {
+#if __EVENTTIMELINE_DEBUG
+                    Debug.LogWarning("[EventTimeline] Duplicate instance detected, destroying GameObject");
+#endif
+
                     Destroy(gameObject);
+
                     return;
                 }
 
                 _instance = this;
 
                 DontDestroyOnLoad(gameObject);
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log("[EventTimeline] Instance initialized in Awake");
+#endif
             }
         }
 
@@ -142,6 +161,9 @@ namespace UnityEventTimeline
             {
                 if (_instance == this)
                 {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                    Debug.Log("[EventTimeline] Clearing singleton instance");
+#endif
                     _instance = null;
                 }
             }
@@ -156,7 +178,15 @@ namespace UnityEventTimeline
         /// </remarks>
         private void HandleSceneUnloaded(Scene scene)
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[EventTimeline] Scene unloaded: {scene.name}");
+#endif
+
             OptimizeMemory();
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log("[EventTimeline] Memory optimization completed after scene unload");
+#endif
         }
     }
 }

@@ -4,10 +4,14 @@
 #define __EVENTTIMELINE_DEBUG
 #endif
 
+#if __EVENTTIMELINE_DEBUG && EVENTTIMELINE_DEBUG_VERBOSE
+#define __EVENTTIMELINE_DEBUG_VERBOSE
+#endif
+
 using System;
 using System.Collections.Generic;
 
-#if __EVENTTIMELINE_DEBUG
+#if __EVENTTIMELINE_DEBUG || __EVENTTIMELINE_DEBUG_VERBOSE
 using UnityEngine;
 #endif
 
@@ -90,13 +94,24 @@ namespace UnityEventTimeline
         {
             if (IsCancelled)
             {
+#if __EVENTTIMELINE_DEBUG
+                Debug.LogWarning($"[TimelineEvent] Attempted to cancel already cancelled event: {GetType().Name}");
+#endif
                 return;
             }
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[TimelineEvent] Cancelling event: {GetType().Name} scheduled for {ScheduledTime:F3}");
+#endif
 
             IsCancelled = true;
 
             // Notify the timeline for immediate removal
             EventTimeline.Instance.CancelAndRemove(this);
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[TimelineEvent] Successfully cancelled and removed event: {GetType().Name}");
+#endif
         }
 
         /// <summary>
@@ -119,6 +134,9 @@ namespace UnityEventTimeline
         /// </remarks>
         public virtual void Reset()
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[TimelineEvent] Resetting event: {GetType().Name}");
+#endif
         }
 
         /// <summary>
@@ -143,10 +161,41 @@ namespace UnityEventTimeline
         /// </remarks>
         internal virtual void ExecuteInternal()
         {
-            if (IsCancelled || CanExecute())
+            ThrowIfDisposed();
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log("[TimelineEvent] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+            Debug.Log($"[TimelineEvent] Beginning internal execution of event: {GetType().Name}");
+#endif
+
+            if (IsCancelled)
             {
-                Execute();
+#if __EVENTTIMELINE_DEBUG
+                Debug.LogWarning($"[TimelineEvent] Skipping execution of cancelled event: {GetType().Name}");
+#endif
+                return;
             }
+
+            if (!CanExecute())
+            {
+#if __EVENTTIMELINE_DEBUG
+                Debug.LogWarning($"[TimelineEvent] Event failed CanExecute check: {GetType().Name}");
+#endif
+                return;
+            }
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+#endif
+
+            Execute();
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            stopwatch.Stop();
+            Debug.Log($"[TimelineEvent] Successfully executed event: {GetType().Name}");
+            Debug.Log($"[TimelineEvent] Execution time: {stopwatch.ElapsedMilliseconds}ms");
+            Debug.Log("[TimelineEvent] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+#endif
         }
 
         /// <summary>
@@ -162,8 +211,16 @@ namespace UnityEventTimeline
         /// <param name="disposing">true if called from Dispose(), false if called from finalizer</param>
         protected virtual void Dispose(bool disposing)
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[TimelineEvent] Disposing event: {GetType().Name} (Disposing: {disposing})");
+            Debug.Log($"[TimelineEvent] Current state - Disposed: {_disposed}, Cancelled: {IsCancelled}");
+#endif
+
             if (_disposed)
             {
+#if __EVENTTIMELINE_DEBUG
+                Debug.LogWarning($"[TimelineEvent] Attempted to dispose already disposed event: {GetType().Name}");
+#endif
                 return;
             }
 
@@ -174,6 +231,10 @@ namespace UnityEventTimeline
             }
 
             _disposed = true;
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[TimelineEvent] Successfully disposed event: {GetType().Name}");
+#endif
         }
 
         /// <summary>
@@ -190,6 +251,9 @@ namespace UnityEventTimeline
         /// </summary>
         ~TimelineEvent()
         {
+#if __EVENTTIMELINE_DEBUG
+            Debug.LogWarning($"[TimelineEvent] Finalizer called for event: {GetType().Name}. This indicates the event wasn't properly disposed.");
+#endif
             Dispose(false);
         }
 
@@ -200,6 +264,9 @@ namespace UnityEventTimeline
         {
             if (_disposed)
             {
+#if __EVENTTIMELINE_DEBUG
+                Debug.LogError($"[TimelineEvent] Attempted to access disposed event: {GetType().Name}");
+#endif
                 throw new ObjectDisposedException(GetType().Name);
             }
         }
@@ -256,7 +323,22 @@ namespace UnityEventTimeline
             {
                 lock (ActiveInstances)
                 {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                    var beforeCleanup = ActiveInstances.Count;
+#endif
+
                     CleanupDeadReferences();
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                    var afterCleanup = ActiveInstances.Count;
+                    if (beforeCleanup != afterCleanup)
+                    {
+                        Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Cleaned up {beforeCleanup - afterCleanup} dead references");
+                    }
+
+                    Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Active instances: {afterCleanup}");
+#endif
+
                     return ActiveInstances.Count > 0;
                 }
             }
@@ -279,6 +361,9 @@ namespace UnityEventTimeline
         /// </remarks>
         public static void AddListener(Action<T> listener)
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Adding event listener");
+#endif
             OnExecute += listener;
         }
 
@@ -292,6 +377,9 @@ namespace UnityEventTimeline
         /// </remarks>
         public static void RemoveListener(Action<T> listener)
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Removing event listener");
+#endif
             OnExecute -= listener;
         }
 
@@ -306,6 +394,9 @@ namespace UnityEventTimeline
         /// </remarks>
         public static void ClearListeners()
         {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Clearing all event listeners");
+#endif
             OnExecute = delegate { };
         }
 
@@ -316,7 +407,18 @@ namespace UnityEventTimeline
         {
             lock (ActiveInstances)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                var beforeCount = ActiveInstances.Count;
+#endif
                 ActiveInstances.RemoveAll(wr => !wr.TryGetTarget(out _));
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                var removedCount = beforeCount - ActiveInstances.Count;
+                if (removedCount > 0)
+                {
+                    Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Cleaned up {removedCount} dead references");
+                }
+#endif
             }
         }
 
@@ -325,17 +427,20 @@ namespace UnityEventTimeline
         /// </summary>
         protected TimelineEvent()
         {
-            var instance = (T)this;
-            _weakThis = new WeakReference<T>(instance);
+            _weakThis = new WeakReference<T>((T)this);
 
             lock (ActiveInstances)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Creating new instance");
+#endif
+
                 ActiveInstances.Add(_weakThis);
 
                 CleanupDeadReferences();
 
-#if __EVENTTIMELINE_DEBUG
-                Debug.Log($"Event {GetType().Name} instantiated. Active instances: {ActiveInstances.Count}");
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Instance created. Total active instances: {ActiveInstances.Count}");
 #endif
             }
         }
@@ -350,14 +455,43 @@ namespace UnityEventTimeline
         /// </remarks>
         internal override void ExecuteInternal()
         {
-            if (IsCancelled || !CanExecute())
+            ThrowIfDisposed();
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            Debug.Log("[TimelineEvent] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+            Debug.Log($"[TimelineEvent] Beginning internal execution of event: {GetType().Name}");
+#endif
+
+            if (IsCancelled)
             {
+#if __EVENTTIMELINE_DEBUG
+                Debug.LogWarning($"[TimelineEvent] Skipping execution of cancelled event: {GetType().Name}");
+#endif
                 return;
             }
+
+            if (!CanExecute())
+            {
+#if __EVENTTIMELINE_DEBUG
+                Debug.LogWarning($"[TimelineEvent] Event failed CanExecute check: {GetType().Name}");
+#endif
+                return;
+            }
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+#endif
 
             Execute();
 
             OnExecute.Invoke((T)this);
+
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+            stopwatch.Stop();
+            Debug.Log($"[TimelineEvent] Successfully executed event: {GetType().Name}");
+            Debug.Log($"[TimelineEvent] Execution time: {stopwatch.ElapsedMilliseconds}ms");
+            Debug.Log("[TimelineEvent] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+#endif
         }
 
         /// <summary>
@@ -369,16 +503,23 @@ namespace UnityEventTimeline
 
             lock (ActiveInstances)
             {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Removing active instance");
+#endif
+
                 ActiveInstances.Remove(_weakThis);
 
                 // If this was the last instance, clear all listeners
                 if (!HasActiveInstances)
                 {
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                    Debug.Log($"[TimelineEvent<{typeof(T).Name}>] No more active instances, clearing listeners");
+#endif
                     ClearListeners();
                 }
 
-#if __EVENTTIMELINE_DEBUG
-                Debug.Log($"Event {GetType().Name} disposed. Active instances: {ActiveInstances.Count}");
+#if __EVENTTIMELINE_DEBUG_VERBOSE
+                Debug.Log($"[TimelineEvent<{typeof(T).Name}>] Disposal complete. Remaining active instances: {ActiveInstances.Count}");
 #endif
             }
         }
