@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace UnityEventTimeline.Internal
+namespace UnityEventTimeline
 {
     /// <summary>
     /// Base class for all models used within the EventTimeline system. Provides core functionality for model validation and access tracking.
