@@ -15,7 +15,7 @@ using System.Threading;
 using ResultObject;
 
 #if __EVENTTIMELINE_DEBUG || __EVENTTIMELINE_DEBUG_VERBOSE
-using UnityEngine;
+using UnityEventTimeline.Internal.Logger;
 #endif
 
 namespace UnityEventTimeline.Internal
@@ -96,14 +96,14 @@ namespace UnityEventTimeline.Internal
         public void SetMaxPoolSize<T>(int maxSize) where T : TimelineEvent
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelinePoolsManager] Setting max pool size for type {typeof(T).Name} to {maxSize}");
+            AsyncLogger.LogFormat("[EventTimelinePoolsManager] Setting max pool size for type {0} to {1}", typeof(T).Name, maxSize);
 #endif
 
             var type = typeof(T);
             if (maxSize <= 0)
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogWarning($"[EventTimelinePoolsManager] Invalid max pool size ({maxSize}) specified for {type.Name}, removing custom size limit");
+                AsyncLogger.LogWarningFormat("[EventTimelinePoolsManager] Invalid max pool size ({0}) specified for {1}, removing custom size limit", maxSize, type.Name);
 #endif
 
                 _maxPoolSizes.TryRemove(type, out _);
@@ -117,7 +117,7 @@ namespace UnityEventTimeline.Internal
             if (_eventPools.TryGetValue(type, out var pool))
             {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log($"[EventTimelinePoolsManager] Trimming existing pool for {type.Name} to new max size {maxSize}");
+                AsyncLogger.LogFormat("[EventTimelinePoolsManager] Trimming existing pool for {0} to new max size {1}", type.Name, maxSize);
 #endif
 
                 TrimPool(type, pool, maxSize);
@@ -172,14 +172,14 @@ namespace UnityEventTimeline.Internal
         protected Result<Unit> ReturnToPool(TimelineEvent evt)
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelinePoolsManager] Attempting to return {evt.GetType().Name} to pool");
+            AsyncLogger.LogFormat("[EventTimelinePoolsManager] Attempting to return {0} to pool", evt.GetType().Name);
 #endif
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
             if (evt is null)
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogError("[EventTimelinePoolsManager] Attempted to return null event to pool");
+                AsyncLogger.LogError("[EventTimelinePoolsManager] Attempted to return null event to pool");
 #endif
 
                 return Result.Failure<Unit>("Event cannot be null");
@@ -194,7 +194,7 @@ namespace UnityEventTimeline.Internal
             if (currentSize >= maxSize)
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogWarning($"[EventTimelinePoolsManager] Pool for {type.Name} at capacity ({maxSize}), disposing event");
+                AsyncLogger.LogWarningFormat("[EventTimelinePoolsManager] Pool for {0} at capacity ({1}), disposing event", type.Name, maxSize);
 #endif
                 evt.Dispose();
                 return Result.Failure<Unit>($"Max pool size ({maxSize}) exceeded");
@@ -207,7 +207,7 @@ namespace UnityEventTimeline.Internal
                 pool.Push(evt);
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log($"[EventTimelinePoolsManager] Successfully returned {type.Name} to pool (Size: {currentSize + 1}/{maxSize})");
+                AsyncLogger.LogFormat("[EventTimelinePoolsManager] Successfully returned {0} to pool (Size: {1}/{2})", type.Name, currentSize + 1, maxSize);
 #endif
 
                 return Result.Success(Unit.Value);
@@ -218,7 +218,7 @@ namespace UnityEventTimeline.Internal
             const int maxSpins = 10; // Limit retries to maintain responsiveness
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelinePoolsManager] Contention detected for {type.Name} pool, entering spin wait");
+            AsyncLogger.LogFormat("[EventTimelinePoolsManager] Contention detected for {0} pool, entering spin wait", type.Name);
 #endif
 
             for (var i = 0; i < maxSpins; i++)
@@ -227,7 +227,7 @@ namespace UnityEventTimeline.Internal
                 if (currentSize >= maxSize)
                 {
 #if __EVENTTIMELINE_DEBUG
-                    Debug.LogWarning($"[EventTimelinePoolsManager] Pool for {type.Name} at capacity after spin, disposing event");
+                    AsyncLogger.LogWarningFormat("[EventTimelinePoolsManager] Pool for {0} at capacity after spin, disposing event", type.Name);
 #endif
                     evt.Dispose();
                     return Result.Failure<Unit>($"Max pool size ({maxSize}) exceeded");
@@ -240,7 +240,7 @@ namespace UnityEventTimeline.Internal
                     pool.Push(evt);
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                    Debug.Log($"[EventTimelinePoolsManager] Successfully returned {type.Name} to pool after {i + 1} spins");
+                    AsyncLogger.LogFormat("[EventTimelinePoolsManager] Successfully returned {0} to pool after {1} spins", type.Name, i + 1);
 #endif
 
                     return Result.Success(Unit.Value);
@@ -250,7 +250,7 @@ namespace UnityEventTimeline.Internal
             }
 
 #if __EVENTTIMELINE_DEBUG
-            Debug.LogError($"[EventTimelinePoolsManager] Failed to return {type.Name} to pool after {maxSpins} attempts, disposing");
+            AsyncLogger.LogErrorFormat("[EventTimelinePoolsManager] Failed to return {0} to pool after {1} attempts, disposing", type.Name, maxSpins);
 #endif
 
             // If still contended after max spins, dispose and fail
@@ -276,7 +276,7 @@ namespace UnityEventTimeline.Internal
         protected T GetFromPool<T>() where T : TimelineEvent, new()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelinePoolsManager] Attempting to get {typeof(T).Name} from pool");
+            AsyncLogger.LogFormat("[EventTimelinePoolsManager] Attempting to get {0} from pool", typeof(T).Name);
 #endif
 
             var type = typeof(T);
@@ -286,7 +286,7 @@ namespace UnityEventTimeline.Internal
             if (!pool.TryPop(out var evt))
             {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log($"[EventTimelinePoolsManager] Pool empty for {type.Name}, creating new instance");
+                AsyncLogger.LogFormat("[EventTimelinePoolsManager] Pool empty for {0}, creating new instance", type.Name);
 #endif
                 return new T();
             }
@@ -299,7 +299,7 @@ namespace UnityEventTimeline.Internal
             );
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelinePoolsManager] Successfully retrieved {type.Name} from pool");
+            AsyncLogger.LogFormat("[EventTimelinePoolsManager] Successfully retrieved {0} from pool", type.Name);
 #endif
 
             return (T)evt;
@@ -314,7 +314,7 @@ namespace UnityEventTimeline.Internal
         private void TrimPool(Type type, ConcurrentStack<TimelineEvent> pool, int maxSize)
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelinePoolsManager] Beginning pool trim for {type.Name} to size {maxSize}");
+            AsyncLogger.LogFormat("[EventTimelinePoolsManager] Beginning pool trim for {0} to size {1}", type.Name, maxSize);
             var initialSize = _currentPoolSizes.GetValueOrDefault(type, 0);
 #endif
 
@@ -323,7 +323,7 @@ namespace UnityEventTimeline.Internal
             if (totalItemsToTrim <= 0)
             {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log($"[EventTimelinePoolsManager] No trimming needed for {type.Name} pool");
+                AsyncLogger.LogFormat("[EventTimelinePoolsManager] No trimming needed for {0} pool", type.Name);
 #endif
 
                 return;
@@ -352,7 +352,7 @@ namespace UnityEventTimeline.Internal
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
             var finalSize = _currentPoolSizes.GetValueOrDefault(type, 0);
-            Debug.Log($"[EventTimelinePoolsManager] Trimmed {trimCount} items from {type.Name} pool (Size: {initialSize}->{finalSize})");
+            AsyncLogger.LogFormat("[EventTimelinePoolsManager] Trimmed {0} items from {1} pool (Size: {2}->{3})", trimCount, type.Name, initialSize, finalSize);
 #endif
         }
 
@@ -366,7 +366,7 @@ namespace UnityEventTimeline.Internal
         protected void TrimEventPools()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelinePoolsManager] Beginning trim of all event pools");
+            AsyncLogger.Log("[EventTimelinePoolsManager] Beginning trim of all event pools");
 #endif
             foreach (var kvp in _eventPools)
             {
@@ -374,7 +374,7 @@ namespace UnityEventTimeline.Internal
                 TrimPool(kvp.Key, kvp.Value, maxSize);
             }
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelinePoolsManager] Completed trimming event pools");
+            AsyncLogger.Log($"[EventTimelinePoolsManager] Completed trimming event pools");
 #endif
         }
 
@@ -388,7 +388,7 @@ namespace UnityEventTimeline.Internal
         protected void ClearEventPools()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelinePoolsManager] Beginning clear of all event pools");
+            AsyncLogger.Log("[EventTimelinePoolsManager] Beginning clear of all event pools");
             var initialPoolCount = _eventPools.Count;
             var totalEvents = 0;
 #endif
@@ -410,7 +410,7 @@ namespace UnityEventTimeline.Internal
             _maxPoolSizes.Clear();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelinePoolsManager] Cleared {initialPoolCount} pools containing {totalEvents} total events");
+            AsyncLogger.LogFormat("[EventTimelinePoolsManager] Cleared {0} pools containing {1} total events", initialPoolCount, totalEvents);
 #endif
         }
     }

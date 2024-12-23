@@ -15,6 +15,10 @@ using System.Linq;
 using ResultObject;
 using UnityEngine;
 
+#if __EVENTTIMELINE_DEBUG || __EVENTTIMELINE_DEBUG_VERBOSE
+using UnityEventTimeline.Internal.Logger;
+#endif
+
 namespace UnityEventTimeline.Internal
 {
     /// <summary>
@@ -148,15 +152,15 @@ namespace UnityEventTimeline.Internal
         public Result<T> SetModel<T>(T model) where T : EventTimelineModel, new()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineModelManager] Beginning SetModel operation for type {typeof(T).Name}");
-            Debug.Log($"[EventTimelineModelManager] Current model count: {_models.Count}");
+            AsyncLogger.LogFormat("[EventTimelineModelManager] Beginning SetModel operation for type {0}", typeof(T).Name);
+            AsyncLogger.LogFormat("[EventTimelineModelManager] Current model count: {0}", _models.Count);
 #endif
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
             if (model is null)
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogError("[EventTimelineModelManager] Attempted to set null model");
+                AsyncLogger.LogError("[EventTimelineModelManager] Attempted to set null model");
 #endif
                 return Result.Failure<T>("Model must not be null", "NULL_MODEL");
             }
@@ -164,7 +168,7 @@ namespace UnityEventTimeline.Internal
             if (!model.Validate())
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogError($"[EventTimelineModelManager] Model validation failed for type {typeof(T).Name}");
+                AsyncLogger.LogErrorFormat("[EventTimelineModelManager] Model validation failed for type {0}", typeof(T).Name);
 #endif
                 return Result.Failure<T>("Model validation failed", "INVALID_MODEL");
             }
@@ -172,7 +176,7 @@ namespace UnityEventTimeline.Internal
             var addedModel = _models.AddOrUpdate(typeof(T), model, (_, _) => model);
 
 #if __EVENTTIMELINE_DEBUG
-            Debug.Log($"[EventTimelineModelManager] Set model of type {typeof(T).Name}. Total models: {_models.Count}");
+            AsyncLogger.LogFormat("[EventTimelineModelManager] Set model of type {0}. Total models: {1}", typeof(T).Name, _models.Count);
 #endif
 
             if (IsMainThread)
@@ -182,13 +186,13 @@ namespace UnityEventTimeline.Internal
             else
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogWarning($"[EventTimelineModelManager] Background model access detected for {typeof(T).Name}. Posting SetLastAccessedTime to main thread.");
+                AsyncLogger.LogWarningFormat("[EventTimelineModelManager] Background model access detected for {0}. Posting SetLastAccessedTime to main thread.", typeof(T).Name);
 #endif
                 RunOnMainThread(() => addedModel.SetLastAccessedTime(Time.time));
             }
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineModelManager] SetModel operation completed");
+            AsyncLogger.Log("[EventTimelineModelManager] SetModel operation completed");
 #endif
 
             return Result.Success((T)addedModel);
@@ -223,7 +227,7 @@ namespace UnityEventTimeline.Internal
         public bool TryGetModel<T>([NotNullWhen(true)] out T? model) where T : EventTimelineModel, new()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineModelManager] Attempting to retrieve model of type {typeof(T).Name}");
+            AsyncLogger.LogFormat("[EventTimelineModelManager] Attempting to retrieve model of type {0}", typeof(T).Name);
 #endif
 
             if (_models.TryGetValue(typeof(T), out var m))
@@ -235,7 +239,7 @@ namespace UnityEventTimeline.Internal
                 else
                 {
 #if __EVENTTIMELINE_DEBUG
-                    Debug.LogWarning($"[EventTimelineModelManager] Background model access detected for {typeof(T).Name}. Posting SetLastAccessedTime to main thread.");
+                    AsyncLogger.LogWarningFormat("[EventTimelineModelManager] Background model access detected for {0}. Posting SetLastAccessedTime to main thread.", typeof(T).Name);
 #endif
                     RunOnMainThread(() => m.SetLastAccessedTime(Time.time));
                 }
@@ -243,7 +247,7 @@ namespace UnityEventTimeline.Internal
                 model = (T)m;
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log($"[EventTimelineModelManager] Successfully retrieved model of type {typeof(T).Name}");
+                AsyncLogger.LogFormat("[EventTimelineModelManager] Successfully retrieved model of type {0}", typeof(T).Name);
 #endif
 
                 return true;
@@ -252,11 +256,11 @@ namespace UnityEventTimeline.Internal
             model = null;
 
 #if __EVENTTIMELINE_DEBUG
-            Debug.LogWarning($"[EventTimelineModelManager] Failed to retrieve model of type {typeof(T).Name} from dictionary");
+            AsyncLogger.LogWarningFormat("[EventTimelineModelManager] Failed to retrieve model of type {0} from dictionary", typeof(T).Name);
 #endif
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineModelManager] Model retrieval failed");
+            AsyncLogger.Log("[EventTimelineModelManager] Model retrieval failed");
 #endif
 
             return false;
@@ -292,7 +296,7 @@ namespace UnityEventTimeline.Internal
             var model = (T)_models.GetOrAdd(typeof(T), _ =>
             {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log($"[EventTimelineModelManager] Creating new model of type {typeof(T).Name}");
+                AsyncLogger.LogFormat("[EventTimelineModelManager] Creating new model of type {0}", typeof(T).Name);
 #endif
                 return new T();
             });
@@ -304,14 +308,14 @@ namespace UnityEventTimeline.Internal
             else
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogWarning($"[EventTimelineModelManager] Background model access detected for {typeof(T).Name}. Posting SetLastAccessedTime to main thread.");
+                AsyncLogger.LogWarningFormat("[EventTimelineModelManager] Background model access detected for {0}. Posting SetLastAccessedTime to main thread.", typeof(T).Name);
 #endif
                 RunOnMainThread(() => model.SetLastAccessedTime(Time.time));
             }
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineModelManager] GetOrCreateModel completed");
-            Debug.Log($"[EventTimelineModelManager] New model count: {_models.Count}");
+            AsyncLogger.Log("[EventTimelineModelManager] GetOrCreateModel completed");
+            AsyncLogger.LogFormat("[EventTimelineModelManager] New model count: {0}", _models.Count);
 #endif
 
             return model;
@@ -348,12 +352,12 @@ namespace UnityEventTimeline.Internal
 #if __EVENTTIMELINE_DEBUG_VERBOSE
             if (removed)
             {
-                Debug.Log($"[EventTimelineModelManager]: Removed model of type {type} from the timeline's model dictionary.");
+                AsyncLogger.LogFormat("[EventTimelineModelManager]: Removed model of type {0} from the timeline's model dictionary.", type);
             }
 #elif __EVENTTIMELINE_DEBUG
             if (!removed)
             {
-                Debug.LogWarning($"[EventTimelineModelManager]: Failed to remove model of type {type} from the timeline's model dictionary. Model not found.");
+                AsyncLogger.LogWarningFormat("[EventTimelineModelManager]: Failed to remove model of type {0} from the timeline's model dictionary. Model not found.", type);
             }
 #endif
 
@@ -385,7 +389,7 @@ namespace UnityEventTimeline.Internal
             if (unusedThreshold <= 0f)
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogWarning("[EventTimelineModelManager] Invalid cleanup threshold (<=0), skipping cleanup");
+                AsyncLogger.LogWarning("[EventTimelineModelManager] Invalid cleanup threshold (<=0), skipping cleanup");
 #endif
                 return 0;
             }
@@ -398,7 +402,7 @@ namespace UnityEventTimeline.Internal
 #if __EVENTTIMELINE_DEBUG_VERBOSE
                 if (_models.TryRemove(key, out var model))
                 {
-                    Debug.Log($"[EventTimelineModelManager] Removed unused model of type {key.Name}. Last accessed: {model.LastAccessedTime:F2}");
+                    AsyncLogger.LogFormat("[EventTimelineModelManager] Removed unused model of type {0}. Last accessed: {1}", key.Name, model.LastAccessedTime);
 #else
                 if (_models.TryRemove(key, out _))
                 {
@@ -408,7 +412,7 @@ namespace UnityEventTimeline.Internal
             }
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineModelManager] Cleanup completed. Removed {count} unused models");
+            AsyncLogger.LogFormat("[EventTimelineModelManager] Cleanup completed. Removed {0} unused models", count);
 #endif
 
             return count;
@@ -449,7 +453,7 @@ namespace UnityEventTimeline.Internal
             _models.Clear();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"Cleared {count} models from the timeline's model dictionary.");
+            AsyncLogger.LogFormat("Cleared {0} models from the timeline's model dictionary.", count);
 #endif
 
             return count;

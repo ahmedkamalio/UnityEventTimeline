@@ -16,7 +16,7 @@ using ResultObject;
 using UnityEventTimeline.Internal.EventQueue;
 
 #if __EVENTTIMELINE_DEBUG || __EVENTTIMELINE_DEBUG_VERBOSE
-using Debug = UnityEngine.Debug;
+using UnityEventTimeline.Internal.Logger;
 #endif
 
 namespace UnityEventTimeline.Internal
@@ -120,7 +120,7 @@ namespace UnityEventTimeline.Internal
         public T Schedule<T>(float delay = 0) where T : TimelineEvent<T>, new()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Scheduling event of type {typeof(T).Name} with delay {delay}s");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Scheduling event of type {0} with delay {1}s", typeof(T).Name, delay);
 #endif
 
             var evt = GetFromPool<T>();
@@ -134,7 +134,7 @@ namespace UnityEventTimeline.Internal
                 RunOnMainThread(() => evt.ScheduledTime = Time.time + delay / timeScale);
 
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogWarning($"[EventTimelineQueue] Background event schedule detected. Posting {typeof(T)} to main thread.");
+                AsyncLogger.LogWarningFormat("[EventTimelineQueue] Background event schedule detected. Posting {0} to main thread.", typeof(T));
 #endif
             }
 
@@ -143,7 +143,7 @@ namespace UnityEventTimeline.Internal
             _eventQueue.Enqueue(evt);
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Successfully scheduled event of type {typeof(T).Name} for time {evt.ScheduledTime:F3}s");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Successfully scheduled event of type {0} for time {1:F3}s", typeof(T).Name, evt.ScheduledTime);
 #endif
 
             return evt;
@@ -180,13 +180,13 @@ namespace UnityEventTimeline.Internal
         public Result<T> Reschedule<T>(T evt, float delay) where T : TimelineEvent
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Attempting to reschedule event of type {typeof(T).Name} with delay {delay}s");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Attempting to reschedule event of type {0} with delay {1}s", typeof(T).Name, delay);
 #endif
 
             if (!_eventQueue.TryRemove(evt))
             {
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogWarning($"[EventTimelineQueue] Failed to reschedule - event not found in queue: {typeof(T).Name}");
+                AsyncLogger.LogWarningFormat("[EventTimelineQueue] Failed to reschedule - event not found in queue: {0}", typeof(T).Name);
 #endif
                 return Result.Failure<T>("Event doesn't exist in the events queue.", "EVT_NOT_FOUND");
             }
@@ -200,14 +200,14 @@ namespace UnityEventTimeline.Internal
                 RunOnMainThread(() => evt.ScheduledTime = Time.time + delay / timeScale);
 
 #if __EVENTTIMELINE_DEBUG
-                Debug.LogWarning($"[EventTimelineQueue] Background event reschedule detected. Posting {typeof(T)} to main thread.");
+                AsyncLogger.LogWarningFormat("[EventTimelineQueue] Background event reschedule detected. Posting {0} to main thread.", typeof(T));
 #endif
             }
 
             _eventQueue.Enqueue(evt);
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Successfully rescheduled event of type {typeof(T).Name} for time {evt.ScheduledTime:F3}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Successfully rescheduled event of type {0} for time {1:F3}", typeof(T).Name, evt.ScheduledTime);
 #endif
 
             return Result.Success(evt);
@@ -223,7 +223,7 @@ namespace UnityEventTimeline.Internal
         public void Clear()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Clearing all events. Current queue size: {_eventQueue.Count}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Clearing all events. Current queue size: {0}", _eventQueue.Count);
 #endif
 
             _eventQueue.Clear();
@@ -242,7 +242,7 @@ namespace UnityEventTimeline.Internal
             ClearEventPools();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineQueue] Successfully cleared all events and pools");
+            AsyncLogger.Log("[EventTimelineQueue] Successfully cleared all events and pools");
 #endif
         }
 
@@ -253,7 +253,7 @@ namespace UnityEventTimeline.Internal
         public int ForceCleanup()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineQueue] Forcing immediate cleanup of cancelled events");
+            AsyncLogger.Log("[EventTimelineQueue] Forcing immediate cleanup of cancelled events");
 #endif
 
             var count = RemoveCancelledEvents();
@@ -261,7 +261,7 @@ namespace UnityEventTimeline.Internal
             _framesSinceCleanup = 0;
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Force cleanup completed. Removed {count} cancelled events");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Force cleanup completed. Removed {0} cancelled events", count);
 #endif
 
             return count;
@@ -280,7 +280,7 @@ namespace UnityEventTimeline.Internal
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
             var isPending = _eventQueue.Contains(evt);
-            Debug.Log($"[EventTimelineQueue] Checking if event is pending: {typeof(T).Name}, Result: {isPending}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Checking if event is pending: {0}, Result: {1}", typeof(T).Name, isPending);
             return isPending;
 #else
             return _eventQueue.Contains(evt);
@@ -315,20 +315,24 @@ namespace UnityEventTimeline.Internal
         public int OptimizeMemory()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            var stopwatch = new System.Diagnostics.Stopwatch();
+            var stopwatch = new Stopwatch();
             stopwatch.Start();
-            Debug.Log("[EventTimelineQueue] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-            Debug.Log("[EventTimelineQueue] Starting memory optimization");
-            Debug.Log($"[EventTimelineQueue] Initial state:");
-            Debug.Log($"[EventTimelineQueue] - Event queue count: {_eventQueue.Count}");
-            Debug.Log($"[EventTimelineQueue] - Cancelled events count: {_cancelledEvents.Count}");
-            Debug.Log($"[EventTimelineQueue] - Cancelled events capacity: {_cancelledEvents.Capacity}");
-            Debug.Log($"[EventTimelineQueue] - Cleanup frames counter: {_framesSinceCleanup}");
+
+            lock (_cancelledEventsLock)
+            {
+                AsyncLogger.Log("[EventTimelineQueue] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                AsyncLogger.Log("[EventTimelineQueue] Starting memory optimization");
+                AsyncLogger.Log("[EventTimelineQueue] Initial state:");
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Event queue count: {0}", _eventQueue.Count);
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Cancelled events count: {0}", _cancelledEvents.Count);
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Cancelled events capacity: {0}", _cancelledEvents.Capacity);
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Cleanup frames counter: {0}", _framesSinceCleanup);
+            }
 #endif
 
             // Process any pending cancelled events first
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineQueue] Step 1: Processing pending cancelled events...");
+            AsyncLogger.Log("[EventTimelineQueue] Step 1: Processing pending cancelled events...");
 #endif
             var cleanedUpCount = RemoveCancelledEvents();
 
@@ -336,25 +340,25 @@ namespace UnityEventTimeline.Internal
             _framesSinceCleanup = 0;
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineQueue] Step 2: Reset cleanup frame counter to 0");
+            AsyncLogger.Log("[EventTimelineQueue] Step 2: Reset cleanup frame counter to 0");
 #endif
 
             // Trim the main event queue
 #if __EVENTTIMELINE_DEBUG_VERBOSE
             var preQueueTrimCount = _eventQueue.Count;
-            Debug.Log("[EventTimelineQueue] Step 3: Trimming main event queue...");
-            Debug.Log($"[EventTimelineQueue] Pre-trim queue count: {preQueueTrimCount}");
+            AsyncLogger.Log("[EventTimelineQueue] Step 3: Trimming main event queue...");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Pre-trim queue count: {0}", preQueueTrimCount);
 #endif
 
             _eventQueue.TrimExcess();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Post-trim queue count: {_eventQueue.Count}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Post-trim queue count: {0}", _eventQueue.Count);
 #endif
 
             // Trim all event pools
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineQueue] Step 4: Trimming event pools...");
+            AsyncLogger.Log("[EventTimelineQueue] Step 4: Trimming event pools...");
 #endif
 
             TrimEventPools();
@@ -362,17 +366,17 @@ namespace UnityEventTimeline.Internal
             lock (_cancelledEventsLock)
             {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log("[EventTimelineQueue] Step 5: Checking cancelled events list capacity...");
+                AsyncLogger.Log("[EventTimelineQueue] Step 5: Checking cancelled events list capacity...");
                 var initialCapacity = _cancelledEvents.Capacity;
-                Debug.Log($"[EventTimelineQueue] Current capacity: {initialCapacity}");
-                Debug.Log($"[EventTimelineQueue] Cleanup threshold: {ImmediateCleanupThreshold}");
+                AsyncLogger.LogFormat("[EventTimelineQueue] Current capacity: {0}", initialCapacity);
+                AsyncLogger.LogFormat("[EventTimelineQueue] Cleanup threshold: {0}", ImmediateCleanupThreshold);
 #endif
 
                 // Trim the cancelled events list if it has grown larger than needed
                 if (_cancelledEvents.Capacity > ImmediateCleanupThreshold)
                 {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                    Debug.Log($"[EventTimelineQueue] Reducing cancelled events capacity from {_cancelledEvents.Capacity} to {ImmediateCleanupThreshold}");
+                    AsyncLogger.LogFormat("[EventTimelineQueue] Reducing cancelled events capacity from {0} to {1}", _cancelledEvents.Capacity, ImmediateCleanupThreshold);
 #endif
                     // Keep some buffer capacity, but not excessive
                     _cancelledEvents.Capacity = ImmediateCleanupThreshold;
@@ -380,21 +384,21 @@ namespace UnityEventTimeline.Internal
 #if __EVENTTIMELINE_DEBUG_VERBOSE
                 else
                 {
-                    Debug.Log("[EventTimelineQueue] Cancelled events capacity is within acceptable range");
+                    AsyncLogger.Log("[EventTimelineQueue] Cancelled events capacity is within acceptable range");
                 }
 #endif
-            }
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            stopwatch.Stop();
-            Debug.Log("[EventTimelineQueue] Memory optimization complete. Summary:");
-            Debug.Log($"[EventTimelineQueue] - Total execution time: {stopwatch.ElapsedMilliseconds}ms");
-            Debug.Log($"[EventTimelineQueue] - Cleaned up events: {cleanedUpCount}");
-            Debug.Log($"[EventTimelineQueue] - Final event queue count: {_eventQueue.Count}");
-            Debug.Log($"[EventTimelineQueue] - Final cancelled events count: {_cancelledEvents.Count}");
-            Debug.Log($"[EventTimelineQueue] - Final cancelled events capacity: {_cancelledEvents.Capacity}");
-            Debug.Log("[EventTimelineQueue] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+                stopwatch.Stop();
+                AsyncLogger.Log("[EventTimelineQueue] Memory optimization complete. Summary:");
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Total execution time: {0}ms", stopwatch.ElapsedMilliseconds);
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Cleaned up events: {0}", cleanedUpCount);
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Final event queue count: {0}", _eventQueue.Count);
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Final cancelled events count: {0}", _cancelledEvents.Count);
+                AsyncLogger.LogFormat("[EventTimelineQueue] - Final cancelled events capacity: {0}", _cancelledEvents.Capacity);
+                AsyncLogger.Log("[EventTimelineQueue] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
 #endif
+            }
 
             return cleanedUpCount;
         }
@@ -449,13 +453,13 @@ namespace UnityEventTimeline.Internal
             if (!_eventQueue.Contains(evt))
             {
 #if __EVENTTIMELINE_DEBUG
-            Debug.LogWarning($"[EventTimelineQueue] Attemting to cancel event of type {evt.GetType().Name} that is not in the queue.");
+            AsyncLogger.LogWarningFormat("[EventTimelineQueue] Attemting to cancel event of type {0} that is not in the queue.", evt.GetType().Name);
 #endif
                 return false;
             }
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Beginning cancellation and removal of event type {evt.GetType().Name}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Beginning cancellation and removal of event type {0}", evt.GetType().Name);
 #endif
 
             evt.IsCancelled = true;
@@ -467,7 +471,7 @@ namespace UnityEventTimeline.Internal
             evt.Reset();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Event reset and added to cancelled events list");
+            AsyncLogger.Log("[EventTimelineQueue] Event reset and added to cancelled events list");
 #endif
 
             lock (_cancelledEventsLock)
@@ -478,11 +482,11 @@ namespace UnityEventTimeline.Internal
                 {
                     return true;
                 }
-            }
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Immediate cleanup of cancelled events triggered. Count: {_cancelledEvents.Count} Immediate Cleanup Threshold {ImmediateCleanupThreshold}.");
+                AsyncLogger.LogFormat("[EventTimelineQueue] Immediate cleanup of cancelled events triggered. Count: {0} Immediate Cleanup Threshold {1}", _cancelledEvents.Count, ImmediateCleanupThreshold);
 #endif
+            }
 
             // Trigger immediate cleanup if we have too many pending cancellations
             RemoveCancelledEvents();
@@ -568,7 +572,7 @@ namespace UnityEventTimeline.Internal
                 _cancelledEvents.Clear();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log($"[EventTimelineQueue] Cleaned up {count} cancelled events after {_framesSinceCleanup} frames");
+                AsyncLogger.LogFormat("[EventTimelineQueue] Cleaned up {0} cancelled events after {1} frames", count, _framesSinceCleanup);
 #endif
 
                 return count;
@@ -654,7 +658,7 @@ namespace UnityEventTimeline.Internal
                 var reason = _framesSinceCleanup >= cleanupInterval 
                     ? "frame interval reached" 
                     : "cancellation threshold exceeded";
-                Debug.Log($"[EventTimelineQueue] Cleanup needed: {reason}. Frames since last cleanup: {_framesSinceCleanup}");
+                AsyncLogger.LogFormat("[EventTimelineQueue] Cleanup needed: {0}. Frames since last cleanup: {1}", reason, _framesSinceCleanup);
             }
 #endif
 
@@ -701,7 +705,7 @@ namespace UnityEventTimeline.Internal
             }
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Beginning event processing. Queue size: {_eventQueue.Count}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Beginning event processing. Queue size: {0}", _eventQueue.Count);
 #endif
 
             _stopwatch.Start();
@@ -711,7 +715,7 @@ namespace UnityEventTimeline.Internal
             _stopwatch.Reset();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimelineQueue] Event processing completed");
+            AsyncLogger.Log("[EventTimelineQueue] Event processing completed");
 #endif
         }
 
@@ -792,7 +796,7 @@ namespace UnityEventTimeline.Internal
             var currentTime = Time.time;
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Beginning batch processing of up to {batchSize} events. Current time: {currentTime:F3}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Beginning batch processing of up to {0} events. Current time: {1:F3}", batchSize, currentTime);
 #endif
 
             _futureEvents.Clear();
@@ -802,7 +806,7 @@ namespace UnityEventTimeline.Internal
                 dequeued++;
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Processing event {dequeued} of batch. Event time: {evt.ScheduledTime:F3}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Processing event {0} of batch. Event time: {1:F3}", dequeued, evt.ScheduledTime);
 #endif
 
                 if (evt.ScheduledTime > currentTime)
@@ -820,7 +824,7 @@ namespace UnityEventTimeline.Internal
                 }
 
 #if __EVENTTIMELINE_DEBUG
-            Debug.LogWarning($"[EventTimelineQueue] Processing time limit reached ({maxProcessingTimeMs}ms). Adding remaining events to future queue.");
+            AsyncLogger.LogWarningFormat("[EventTimelineQueue] Processing time limit reached ({0}ms). Adding remaining events to future queue.", maxProcessingTimeMs);
 #endif
 
                 // Add remaining events to future events
@@ -832,7 +836,7 @@ namespace UnityEventTimeline.Internal
             HandleFutureEvents();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Batch processing complete. Processed {processedCount} events, Dequeued {dequeued} events");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Batch processing complete. Processed {0} events, Dequeued {1} events", processedCount, dequeued);
 #endif
 
             return processedCount;
@@ -850,13 +854,13 @@ namespace UnityEventTimeline.Internal
         private void ProcessSingleEvent(TimelineEvent evt)
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Processing single event of type {evt.GetType().Name}");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Processing single event of type {0}", evt.GetType().Name);
 #endif
 
             evt.ExecuteInternal();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Event execution completed, returning to pool");
+            AsyncLogger.Log("[EventTimelineQueue] Event execution completed, returning to pool");
 #endif
 
             ReturnToPool(evt);
@@ -876,7 +880,7 @@ namespace UnityEventTimeline.Internal
                 _eventQueue.EnqueueRange(_futureEvents);
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Re-queued {_futureEvents.Count} future events");
+            AsyncLogger.LogFormat("[EventTimelineQueue] Re-queued {0} future events", _futureEvents.Count);
 #endif
             }
         }

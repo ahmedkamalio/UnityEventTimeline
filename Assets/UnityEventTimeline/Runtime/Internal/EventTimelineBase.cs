@@ -12,6 +12,10 @@ using System;
 using System.Threading;
 using UnityEngine;
 
+#if __EVENTTIMELINE_DEBUG || __EVENTTIMELINE_DEBUG_VERBOSE
+using UnityEventTimeline.Internal.Logger;
+#endif
+
 namespace UnityEventTimeline.Internal
 {
     /// <summary>
@@ -70,7 +74,7 @@ namespace UnityEventTimeline.Internal
         public void SetTimeScale(float scale)
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineBase] Setting time scale to {scale}");
+            AsyncLogger.LogFormat("[EventTimelineBase] Setting time scale to {0}", scale);
 #endif
 
             timeScale = scale;
@@ -83,7 +87,7 @@ namespace UnityEventTimeline.Internal
         public void SetPaused(bool paused)
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineBase] Setting paused to {paused}");
+            AsyncLogger.LogFormat("[EventTimelineBase] Setting paused to {0}", paused);
 #endif
 
             isPaused = paused;
@@ -103,7 +107,7 @@ namespace UnityEventTimeline.Internal
             if (IsMainThread)
             {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log("[EventTimelineBase] Already on main thread, executing action immediately.");
+                AsyncLogger.Log("[EventTimelineBase] Already on main thread, executing action immediately.");
 #endif
 
                 action();
@@ -111,7 +115,7 @@ namespace UnityEventTimeline.Internal
             else
             {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log("[EventTimelineBase] Posting action to main thread.");
+                AsyncLogger.Log("[EventTimelineBase] Posting action to main thread.");
 #endif
 
                 _mainThreadContext?.Post(_ => action(), null);

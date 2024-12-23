@@ -12,6 +12,10 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEventTimeline.Internal;
 
+#if __EVENTTIMELINE_DEBUG || __EVENTTIMELINE_DEBUG_VERBOSE
+using UnityEventTimeline.Internal.Logger;
+#endif
+
 namespace UnityEventTimeline
 {
     /// <summary>
@@ -62,7 +66,7 @@ namespace UnityEventTimeline
                 lock (SingletonLock)
                 {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                    Debug.Log("[EventTimeline] Creating new instance");
+                    AsyncLogger.Log("[EventTimeline] Creating new instance");
 #endif
                     var go = new GameObject(nameof(EventTimeline));
                     _instance = go.AddComponent<EventTimeline>();
@@ -103,7 +107,7 @@ namespace UnityEventTimeline
                 if (_instance is not null && _instance != this)
                 {
 #if __EVENTTIMELINE_DEBUG
-                    Debug.LogWarning("[EventTimeline] Duplicate instance detected, destroying GameObject");
+                    AsyncLogger.LogWarning("[EventTimeline] Duplicate instance detected, destroying GameObject");
 #endif
 
                     Destroy(gameObject);
@@ -116,7 +120,7 @@ namespace UnityEventTimeline
                 DontDestroyOnLoad(gameObject);
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                Debug.Log("[EventTimeline] Instance initialized in Awake");
+                AsyncLogger.Log("[EventTimeline] Instance initialized in Awake");
 #endif
             }
         }
@@ -159,7 +163,7 @@ namespace UnityEventTimeline
                 if (_instance == this)
                 {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-                    Debug.Log("[EventTimeline] Clearing singleton instance");
+                    AsyncLogger.Log("[EventTimeline] Clearing singleton instance");
 #endif
                     _instance = null;
                 }
@@ -176,13 +180,13 @@ namespace UnityEventTimeline
         private void HandleSceneUnloaded(Scene scene)
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimeline] Scene unloaded: {scene.name}");
+            AsyncLogger.LogFormat("[EventTimeline] Scene unloaded: {0}", scene.name);
 #endif
 
             OptimizeMemory();
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log("[EventTimeline] Memory optimization completed after scene unload");
+            AsyncLogger.Log("[EventTimeline] Memory optimization completed after scene unload");
 #endif
         }
     }
