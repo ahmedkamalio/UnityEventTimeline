@@ -56,9 +56,6 @@ namespace UnityEventTimeline
             {
                 if (_instance is not null)
                 {
-#if __EVENTTIMELINE_DEBUG_VERBOSE
-                    Debug.Log("[EventTimeline] Returning existing instance");
-#endif
                     return _instance;
                 }
 

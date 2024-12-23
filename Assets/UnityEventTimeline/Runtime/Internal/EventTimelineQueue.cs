@@ -120,7 +120,7 @@ namespace UnityEventTimeline.Internal
         public T Schedule<T>(float delay = 0) where T : TimelineEvent<T>, new()
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Scheduling event of type {typeof(T).Name} with delay {delay}");
+            Debug.Log($"[EventTimelineQueue] Scheduling event of type {typeof(T).Name} with delay {delay}s");
 #endif
 
             var evt = GetFromPool<T>();
@@ -143,7 +143,7 @@ namespace UnityEventTimeline.Internal
             _eventQueue.Enqueue(evt);
 
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Successfully scheduled event of type {typeof(T).Name} for time {evt.ScheduledTime:F3}");
+            Debug.Log($"[EventTimelineQueue] Successfully scheduled event of type {typeof(T).Name} for time {evt.ScheduledTime:F3}s");
 #endif
 
             return evt;
@@ -180,7 +180,7 @@ namespace UnityEventTimeline.Internal
         public Result<T> Reschedule<T>(T evt, float delay) where T : TimelineEvent
         {
 #if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Attempting to reschedule event of type {typeof(T).Name} with delay {delay}");
+            Debug.Log($"[EventTimelineQueue] Attempting to reschedule event of type {typeof(T).Name} with delay {delay}s");
 #endif
 
             if (!_eventQueue.TryRemove(evt))
