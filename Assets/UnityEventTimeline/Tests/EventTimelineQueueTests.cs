@@ -138,7 +138,7 @@ namespace UnityEventTimeline.Tests
             // Arrange
             const float maxProcessingTime = 1f; // 1ms
             const int eventCount = 100;
-            _queueManager.SetMaxProcessingTime(maxProcessingTime);
+            _queueManager.SetMaxProcessingTimePerFrame(maxProcessingTime);
 
             var executedEvents = new List<TestEvent>();
 

@@ -429,7 +429,7 @@ namespace UnityEventTimeline.Internal
         /// This limit ensures frame rate stability by limiting event processing time.
         /// Must be greater than 0.
         /// </remarks>
-        public void SetMaxProcessingTime(float maxTimeMs)
+        public void SetMaxProcessingTimePerFrame(float maxTimeMs)
         {
             maxProcessingTimeMs = Mathf.Max(0.1f, maxTimeMs);
         }
@@ -819,8 +819,8 @@ namespace UnityEventTimeline.Internal
                     continue;
                 }
 
-#if __EVENTTIMELINE_DEBUG_VERBOSE
-            Debug.Log($"[EventTimelineQueue] Processing time limit reached ({maxProcessingTimeMs}ms). Adding remaining events to future queue.");
+#if __EVENTTIMELINE_DEBUG
+            Debug.LogWarning($"[EventTimelineQueue] Processing time limit reached ({maxProcessingTimeMs}ms). Adding remaining events to future queue.");
 #endif
 
                 // Add remaining events to future events

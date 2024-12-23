@@ -1,6 +1,6 @@
 {
   "name": "io.ahmedkamal.unity.eventtimeline",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "displayName": "UnityEventTimeline",
   "description": "A thread-safe event scheduling and timeline management system for Unity with efficient object pooling, priority-based event queue, and model-based state management. Features plug-and-play setup, time scaling, scene transition handling, and automatic memory optimization.",
   "unity": "2021.3",
