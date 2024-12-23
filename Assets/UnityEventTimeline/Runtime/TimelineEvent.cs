@@ -92,6 +92,8 @@ namespace UnityEventTimeline
         /// </remarks>
         public void Cancel()
         {
+            ThrowIfDisposed();
+
             if (IsCancelled)
             {
 #if __EVENTTIMELINE_DEBUG
@@ -134,6 +136,8 @@ namespace UnityEventTimeline
         /// </remarks>
         public virtual void Reset()
         {
+            ThrowIfDisposed();
+
 #if __EVENTTIMELINE_DEBUG_VERBOSE
             Debug.Log($"[TimelineEvent] Resetting event: {GetType().Name}");
 #endif
@@ -149,7 +153,12 @@ namespace UnityEventTimeline
         /// This virtual method can be overridden by derived classes to add
         /// additional execution conditions beyond the basic cancellation check.
         /// </remarks>
-        protected virtual bool CanExecute() => true;
+        protected virtual bool CanExecute()
+        {
+            ThrowIfDisposed();
+
+            return true;
+        }
 
         /// <summary>
         /// Internal method that handles the event execution process.
@@ -252,7 +261,10 @@ namespace UnityEventTimeline
         ~TimelineEvent()
         {
 #if __EVENTTIMELINE_DEBUG
-            Debug.LogWarning($"[TimelineEvent] Finalizer called for event: {GetType().Name}. This indicates the event wasn't properly disposed.");
+            if (!_disposed)
+            {
+                Debug.LogWarning($"[TimelineEvent] Finalizer called for event: {GetType().Name}. This indicates the event wasn't properly disposed.");
+            }
 #endif
             Dispose(false);
         }
